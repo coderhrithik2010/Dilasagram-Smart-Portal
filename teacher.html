@@ -162,25 +162,30 @@
     alert("Attendance saved ✅");
   };
 
-  /* === PHOTOS === */
+    /* === PHOTOS === */
   const fileInput = document.getElementById("activityPhoto");
   const gallery = document.getElementById("photoGallery");
+
   document.getElementById("uploadPhotoBtn").onclick = async () => {
     const files = fileInput.files;
     if (!files.length) return alert("Select images first");
+
     for (let f of files) {
       const ref = storage.ref(`activities/${className}/${f.name}`);
       await ref.put(f);
       const url = await ref.getDownloadURL();
+
+      // Save inside the class folder
       activityRef.push({ url, name: f.name, time: new Date().toLocaleString() });
 
-// Also upload to public gallery so all can see
-db.ref(`schools/dilasagram/public/gallery`).push({
-  url,
-  name: f.name,
-  uploadedBy: className,
-  time: new Date().toLocaleString()
-});
+      // Also upload to public gallery so all can see
+      db.ref(`schools/dilasagram/public/gallery`).push({
+        url,
+        name: f.name,
+        uploadedBy: className,
+        time: new Date().toLocaleString()
+      });
+    }
 
     alert("Photos uploaded ✅");
   };
@@ -196,11 +201,11 @@ db.ref(`schools/dilasagram/public/gallery`).push({
     });
   });
 </script>
-</main>
-
+  
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+
 
 
 

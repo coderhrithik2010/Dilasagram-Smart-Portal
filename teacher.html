@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Teacher Panel - DCS</title>
   <link rel="stylesheet" href="style.css">
+    <!-- ✅ Firebase SDKs (must be before your custom scripts) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+  <!-- ✅ Your Firebase config file -->
   <script src="firebase.js"></script>
 </head>
 <body>
@@ -194,5 +201,6 @@ db.ref(`schools/dilasagram/public/gallery`).push({
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+
 
 

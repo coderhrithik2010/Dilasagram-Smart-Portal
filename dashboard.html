@@ -5,7 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Principal Dashboard - DCS</title>
   <link rel="stylesheet" href="style.css">
+
+  <!-- ✅ Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+  <!-- ✅ Firebase config -->
+  <script src="firebase.js"></script>
+
+  <!-- ✅ Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
   <header class="topbar">
     <img src="logo.png" alt="Logo">
@@ -15,8 +28,15 @@
  <main class="container">
   <section class="card">
     <h3>Class Performance Overview</h3>
-    <select id="classSelect"></select>
-    <canvas id="chart"></canvas>
+    <select id="classDropdown"></select>
+    <select id="examDropdown">
+      <option value="">-- Select Exam --</option>
+      <option>PeriodicTest1</option>
+      <option>HalfYearly</option>
+      <option>PeriodicTest3</option>
+      <option>Annual</option>
+    </select>
+    <canvas id="principalChart" width="500" height="250"></canvas>
   </section>
 
   <section class="card">
@@ -131,6 +151,81 @@
 
   </main>
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
+  <script>
+  console.log("✅ Principal Dashboard script running");
+
+  const classDrop = document.getElementById("classDropdown");
+  const examDrop = document.getElementById("examDropdown");
+
+  // Populate classes dynamically
+  for (let i = 1; i <= 10; i++) {
+    const secs = i === 8 ? ["A","B","C","D"] : ["A","B","C"];
+    secs.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = `class${i}${s}`;
+      opt.textContent = `Class ${i}${s}`;
+      classDrop.appendChild(opt);
+    });
+  }
+
+  let principalChart;
+
+  function loadClassPerformance() {
+    const cls = classDrop.value;
+    const exam = examDrop.value;
+    if (!cls || !exam) {
+      console.log("⚠️ Please select class and exam");
+      return;
+    }
+
+    console.log(`Fetching data for ${cls}, ${exam}...`);
+    const ref = db.ref(`schools/dilasagram/classes/${cls}/marks/${exam}`);
+
+    ref.once("value").then((snap) => {
+      const data = snap.val();
+      if (!data) {
+        alert("No marks data found for this class and exam");
+        return;
+      }
+
+      const ctx = document.getElementById("principalChart").getContext("2d");
+      const students = Object.keys(data);
+      const averages = students.map(name => {
+        const subs = Object.values(data[name]);
+        const total = subs.reduce((a, b) => a + b, 0);
+        return (total / (subs.length * 100)) * 100;
+      });
+
+      if (principalChart) principalChart.destroy();
+
+      principalChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: students,
+          datasets: [{
+            label: `${cls} – ${exam} %`,
+            data: averages,
+            backgroundColor: students.map(() => `hsl(${Math.random() * 360},70%,60%)`)
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true, max: 100 } },
+          plugins: {
+            title: { display: true, text: `${cls} ${exam} Marks %` },
+            legend: { display: false }
+          }
+        }
+      });
+    }).catch(err => {
+      console.error("❌ Firebase read failed:", err);
+      alert("Error loading data. Check console.");
+    });
+  }
+
+  classDrop.addEventListener("change", loadClassPerformance);
+  examDrop.addEventListener("change", loadClassPerformance);
+</script>
 </body>
 </html>
+
 

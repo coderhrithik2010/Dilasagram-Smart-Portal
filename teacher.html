@@ -88,9 +88,12 @@
 
   // === Firebase References ===
   const marksRef = db.ref(`schools/dilasagram/classes/${className}/marks`);
-  const complaintsRef = db.ref(`schools/dilasagram/classes/${className}/complaints`);
-  const timetableRef = db.ref(`schools/dilasagram/classes/${className}/timetable`);
-  const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
+const complaintsRef = db.ref(`schools/dilasagram/classes/${className}/complaints`);
+const timetableRef = db.ref(`schools/dilasagram/classes/${className}/timetable`);
+const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
+const activityRef = db.ref(`schools/dilasagram/classes/${className}/activities`);
+const studentsRef = db.ref(`schools/dilasagram/classes/${className}/students`);
+
   /* === AUTO-LOAD TIMETABLE === */
 timetableRef.on("value", (snap) => {
   const data = snap.val() || {};
@@ -161,11 +164,45 @@ localStorage.setItem("lastExam", exam);
   /* === 1️⃣ MARKS SECTION === */
   const studentList = []; // store names to use for attendance
   
-  document.getElementById("addStudentBtn").onclick = () => {
-    const name = document.getElementById("studentName").value.trim();
-    if (!name) return alert("Enter student name");
+// === ADD STUDENT ===
+document.getElementById("addStudentBtn").onclick = () => {
+  const name = document.getElementById("studentName").value.trim();
+  if (!name) return alert("Enter student name");
+
+  // Save student in Firebase
+  studentsRef.child(name).set({ name });
+
+  // Add in local list for attendance
+  studentList.push(name);
+
+  // Add marks input row dynamically
+  const div = document.createElement("div");
+  div.innerHTML = `
+    <h4>${name}</h4>
+    <input type="number" placeholder="English" id="${name}-English">
+    <input type="number" placeholder="Maths" id="${name}-Maths">
+    <input type="number" placeholder="Science" id="${name}-Science">
+    <input type="number" placeholder="SocialScience" id="${name}-SS">
+    <input type="number" placeholder="Hindi" id="${name}-Hindi">
+    <input type="number" placeholder="Marathi" id="${name}-Marathi">
+  `;
+  document.getElementById("marksArea").appendChild(div);
+  document.getElementById("studentName").value = "";
+
+  alert("✅ Student added successfully!");
+};
+// === AUTO-LOAD STUDENT LIST (With Edit & Delete) ===
+studentsRef.on("value", (snap) => {
+  const data = snap.val() || {};
+  const area = document.getElementById("marksArea");
+  area.innerHTML = "";
+
+  studentList.length = 0; // reset list
+
+  for (let name in data) {
     studentList.push(name);
     const div = document.createElement("div");
+    div.className = "studentRow";
     div.innerHTML = `
       <h4>${name}</h4>
       <input type="number" placeholder="English" id="${name}-English">
@@ -174,10 +211,82 @@ localStorage.setItem("lastExam", exam);
       <input type="number" placeholder="SocialScience" id="${name}-SS">
       <input type="number" placeholder="Hindi" id="${name}-Hindi">
       <input type="number" placeholder="Marathi" id="${name}-Marathi">
+      <button class="btn editBtn" data-name="${name}">✏️</button>
+      <button class="btn deleteBtn" data-name="${name}">🗑️</button>
     `;
-    document.getElementById("marksArea").appendChild(div);
-    document.getElementById("studentName").value = "";
-  };
+    area.appendChild(div);
+  }
+
+  renderAttendance(); // refresh attendance list
+});
+
+  // === DELETE STUDENT ===
+document.getElementById("marksArea").addEventListener("click", (e) => {
+  if (e.target.classList.contains("deleteBtn")) {
+    const name = e.target.dataset.name;
+    if (!confirm(`Delete student ${name}?`)) return;
+    studentsRef.child(name).remove();
+    marksRef.once("value").then(snap => {
+      const marksData = snap.val() || {};
+      for (let exam in marksData) {
+        if (marksData[exam][name]) {
+          delete marksData[exam][name];
+        }
+      }
+      marksRef.set(marksData);
+    });
+    attendanceRef.once("value").then(snap => {
+      const attData = snap.val() || {};
+      for (let date in attData) {
+        if (attData[date][name]) {
+          delete attData[date][name];
+        }
+      }
+      attendanceRef.set(attData);
+    });
+    alert("🗑️ Student deleted successfully!");
+  }
+
+  // === EDIT STUDENT ===
+  if (e.target.classList.contains("editBtn")) {
+    const oldName = e.target.dataset.name;
+    const newName = prompt("Enter new name for " + oldName, oldName);
+    if (!newName || newName.trim() === "") return alert("Name cannot be empty");
+    if (newName === oldName) return;
+
+    // Copy student node to new name
+    studentsRef.child(newName).set({ name: newName });
+    studentsRef.child(oldName).remove();
+
+    // Update marks data too
+    marksRef.once("value").then(snap => {
+      const marksData = snap.val() || {};
+      for (let exam in marksData) {
+        if (marksData[exam][oldName]) {
+          marksData[exam][newName] = marksData[exam][oldName];
+          delete marksData[exam][oldName];
+        }
+      }
+      marksRef.set(marksData);
+    });
+
+    // Update attendance records
+    attendanceRef.once("value").then(snap => {
+      const attData = snap.val() || {};
+      for (let date in attData) {
+        if (attData[date][oldName]) {
+          attData[date][newName] = attData[date][oldName];
+          delete attData[date][oldName];
+        }
+      }
+      attendanceRef.set(attData);
+    });
+
+    alert("✏️ Student name updated successfully!");
+  }
+});
+
+
 
   document.getElementById("saveMarksBtn").onclick = () => {
     const exam = document.getElementById("examSelect").value;
@@ -389,6 +498,7 @@ function renderMarksChart(data, examName) {
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+
 
 
 

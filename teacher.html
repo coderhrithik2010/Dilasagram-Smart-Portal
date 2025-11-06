@@ -91,6 +91,31 @@
   const complaintsRef = db.ref(`schools/dilasagram/classes/${className}/complaints`);
   const timetableRef = db.ref(`schools/dilasagram/classes/${className}/timetable`);
   const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
+  /* === AUTO-LOAD TIMETABLE === */
+timetableRef.on("value", (snap) => {
+  const data = snap.val() || {};
+  periods.forEach(p => {
+    const input = document.getElementById(`period${p}`);
+    if (input && data[`period${p}`]) {
+      input.value = data[`period${p}`];
+    }
+  });
+});
+
+/* === AUTO-LOAD ATTENDANCE (latest date) === */
+attendanceRef.limitToLast(1).on("value", (snap) => {
+  const data = snap.val();
+  if (!data) return;
+  const latestDate = Object.keys(data)[0];
+  const records = data[latestDate];
+  studentList.forEach(name => {
+    const chk = document.getElementById("att-" + name);
+    if (chk && records[name]) {
+      chk.checked = records[name] === "Present";
+    }
+  });
+});
+
   const activityRef = db.ref(`schools/dilasagram/classes/${className}/activities`);
   // === Load Marks When Exam is Selected ===
 document.getElementById("examSelect").addEventListener("change", (e) => {
@@ -364,6 +389,7 @@ function renderMarksChart(data, examName) {
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+
 
 
 

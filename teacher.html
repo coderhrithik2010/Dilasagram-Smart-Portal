@@ -92,6 +92,46 @@
   const timetableRef = db.ref(`schools/dilasagram/classes/${className}/timetable`);
   const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
   const activityRef = db.ref(`schools/dilasagram/classes/${className}/activities`);
+  // === Load Marks When Exam is Selected ===
+document.getElementById("examSelect").addEventListener("change", (e) => {
+  const exam = e.target.value;
+  if (!exam) return;
+  loadMarks(exam);
+});
+
+function loadMarks(exam) {
+  marksRef.child(exam).once("value").then((snap) => {
+    const data = snap.val() || {};
+    const area = document.getElementById("marksArea");
+    area.innerHTML = ""; // clear old marks
+
+    // rebuild inputs
+    for (let student in data) {
+      const div = document.createElement("div");
+      div.innerHTML = `<h4>${student}</h4>`;
+      for (let subj in data[student]) {
+        div.innerHTML += `<input type="number" id="${student}-${subj}" placeholder="${subj}" value="${data[student][subj]}">`;
+      }
+      area.appendChild(div);
+    }
+
+    // Also show analytics + graph
+    if (Object.keys(data).length > 0) {
+      renderAnalytics(data);
+      renderMarksChart(data, exam);
+    }
+  });
+}
+
+// ✅ Optional: Auto-load last selected exam
+const lastExam = localStorage.getItem("lastExam");
+if (lastExam) {
+  document.getElementById("examSelect").value = lastExam;
+  loadMarks(lastExam);
+}
+renderMarksChart(data, exam);
+localStorage.setItem("lastExam", exam);
+
   
   /* === 1️⃣ MARKS SECTION === */
   const studentList = []; // store names to use for attendance
@@ -324,6 +364,7 @@ function renderMarksChart(data, examName) {
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+
 
 
 

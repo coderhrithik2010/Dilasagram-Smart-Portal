@@ -14,13 +14,176 @@
   </header>
 
   <main class="container">
-    <section class="card"><h3>Enter Student Marks</h3><p>UI ready - connect Firebase later.</p></section>
-    <section class="card"><h3>Attendance</h3></section>
-    <section class="card"><h3>Timetable</h3></section>
-    <section class="card"><h3>Complaints</h3></section>
-    <section class="card"><h3>Class Activities</h3></section>
-  </main>
+  <h2 id="classTitle">Loading classroom...</h2>
+
+  <!-- === Marks Section === -->
+  <section class="card">
+    <h3>Enter Student Marks</h3>
+    <select id="examSelect">
+      <option value="">-- Select Exam --</option>
+      <option>PeriodicTest1</option>
+      <option>HalfYearly</option>
+      <option>PeriodicTest3</option>
+      <option>Annual</option>
+    </select>
+
+    <div id="marksArea"></div>
+    <input id="studentName" placeholder="Student name">
+    <button class="btn" id="addStudentBtn">Add Student</button>
+    <button class="btn" id="saveMarksBtn">Save Marks</button>
+  </section>
+
+  <!-- === Complaints === -->
+  <section class="card">
+    <h3>Submit Complaint</h3>
+    <input id="teacherName" placeholder="Teacher Name">
+    <textarea id="complaintText" placeholder="Write complaint here..."></textarea>
+    <button class="btn" id="submitComplaintBtn">Submit</button>
+  </section>
+
+  <!-- === Timetable === -->
+  <section class="card">
+    <h3>Timetable (8 periods + Lunch after 4th)</h3>
+    <div id="timetableArea"></div>
+    <button class="btn" id="saveTimetableBtn">Save Timetable</button>
+  </section>
+
+  <!-- === Attendance === -->
+  <section class="card">
+    <h3>Attendance</h3>
+    <div id="attendanceArea"></div>
+    <button class="btn" id="saveAttendanceBtn">Save Attendance</button>
+  </section>
+
+  <!-- === Photos === -->
+  <section class="card">
+    <h3>Class Activity Photos</h3>
+    <input type="file" id="activityPhoto" multiple accept="image/*">
+    <button class="btn" id="uploadPhotoBtn">Upload</button>
+    <div id="photoGallery"></div>
+  </section>
+</main>
+
+<script>
+  // Get class name
+  const params = new URLSearchParams(window.location.search);
+  const className = params.get("class");
+  document.getElementById("classTitle").innerText = "Classroom: " + className;
+
+  // Firebase references
+  const marksRef = db.ref(`schools/dilasagram/classes/${className}/marks`);
+  const complaintsRef = db.ref(`schools/dilasagram/classes/${className}/complaints`);
+  const timetableRef = db.ref(`schools/dilasagram/classes/${className}/timetable`);
+  const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
+  const activityRef = db.ref(`schools/dilasagram/classes/${className}/activities`);
+
+  /* === MARKS SECTION === */
+  document.getElementById("addStudentBtn").onclick = () => {
+    const name = document.getElementById("studentName").value.trim();
+    if (!name) return alert("Enter student name");
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <h4>${name}</h4>
+      <input type="number" placeholder="English" id="${name}-English">
+      <input type="number" placeholder="Maths" id="${name}-Maths">
+      <input type="number" placeholder="Science" id="${name}-Science">
+      <input type="number" placeholder="SocialScience" id="${name}-SS">
+      <input type="number" placeholder="Hindi" id="${name}-Hindi">
+      <input type="number" placeholder="Marathi" id="${name}-Marathi">
+    `;
+    document.getElementById("marksArea").appendChild(div);
+    document.getElementById("studentName").value = "";
+  };
+
+  document.getElementById("saveMarksBtn").onclick = () => {
+    const exam = document.getElementById("examSelect").value;
+    if (!exam) return alert("Select exam");
+    const inputs = document.querySelectorAll("#marksArea input");
+    const data = {};
+    inputs.forEach(inp => {
+      const [student, subj] = inp.id.split("-");
+      data[student] = data[student] || {};
+      data[student][subj] = parseInt(inp.value) || 0;
+    });
+    marksRef.child(exam).set(data);
+    alert("Marks saved successfully ✅");
+  };
+
+  /* === COMPLAINTS === */
+  document.getElementById("submitComplaintBtn").onclick = () => {
+    const teacher = document.getElementById("teacherName").value;
+    const text = document.getElementById("complaintText").value;
+    if (!teacher || !text) return alert("Please fill both fields");
+    complaintsRef.push({ teacher, text, time: new Date().toLocaleString(), status: "Unresolved" });
+    alert("Complaint submitted ✅");
+    document.getElementById("teacherName").value = "";
+    document.getElementById("complaintText").value = "";
+  };
+
+  /* === TIMETABLE === */
+  const timetableArea = document.getElementById("timetableArea");
+  const periods = ["1","2","3","4","Lunch","5","6","7","8"];
+  periods.forEach(p => {
+    const div = document.createElement("div");
+    div.innerHTML = `<input placeholder="${p==='Lunch'?'Lunch Break':'Period ' + p}" id="period${p}">`;
+    timetableArea.appendChild(div);
+  });
+
+  document.getElementById("saveTimetableBtn").onclick = () => {
+    const updates = {};
+    periods.forEach(p => {
+      updates[`period${p}`] = document.getElementById(`period${p}`).value || "";
+    });
+    timetableRef.set(updates);
+    alert("Timetable saved ✅");
+  };
+
+  /* === ATTENDANCE === */
+  const attendanceStudents = ["Rohan","Neha","Aman","Priya"];
+  const attArea = document.getElementById("attendanceArea");
+  attendanceStudents.forEach(name => {
+    const div = document.createElement("div");
+    div.innerHTML = `<label><input type="checkbox" id="att-${name}"> ${name}</label>`;
+    attArea.appendChild(div);
+  });
+  document.getElementById("saveAttendanceBtn").onclick = () => {
+    const data = {};
+    attendanceStudents.forEach(name => {
+      data[name] = document.getElementById("att-" + name).checked ? "Present" : "Absent";
+    });
+    attendanceRef.child(new Date().toISOString().split("T")[0]).set(data);
+    alert("Attendance saved ✅");
+  };
+
+  /* === PHOTOS === */
+  const fileInput = document.getElementById("activityPhoto");
+  const gallery = document.getElementById("photoGallery");
+  document.getElementById("uploadPhotoBtn").onclick = async () => {
+    const files = fileInput.files;
+    if (!files.length) return alert("Select images first");
+    for (let f of files) {
+      const ref = storage.ref(`activities/${className}/${f.name}`);
+      await ref.put(f);
+      const url = await ref.getDownloadURL();
+      activityRef.push({ url, name: f.name, time: new Date().toLocaleString() });
+    }
+    alert("Photos uploaded ✅");
+  };
+
+  activityRef.on("value", snap => {
+    const data = snap.val() || {};
+    gallery.innerHTML = "";
+    Object.values(data).forEach(p => {
+      const img = document.createElement("img");
+      img.src = p.url;
+      img.style = "width:100px;border-radius:10px;margin:5px;";
+      gallery.appendChild(img);
+    });
+  });
+</script>
+</main>
 
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+

@@ -13,6 +13,8 @@
 
   <!-- ✅ Your Firebase config file -->
   <script src="firebase.js"></script>
+  <!-- ✅ Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -23,29 +25,37 @@
   <main class="container">
   <h2 id="classTitle">Loading classroom...</h2>
 
-  <!-- === Marks Section === -->
-  <section class="card">
-    <h3>Enter Student Marks</h3>
-    <select id="examSelect">
-      <option value="">-- Select Exam --</option>
-      <option>PeriodicTest1</option>
-      <option>HalfYearly</option>
-      <option>PeriodicTest3</option>
-      <option>Annual</option>
-    </select>
+ <!-- === Marks Section === -->
+<section class="card">
+  <h3>Enter Student Marks</h3>
 
-    <div id="marksArea"></div>
-    <input id="studentName" placeholder="Student name">
-    <button class="btn" id="addStudentBtn">Add Student</button>
-    <button class="btn" id="saveMarksBtn">Save Marks</button>
-  </section>
-  <!-- === Complaints === -->
-  <section class="card">
-    <h3>Submit Complaint</h3>
-    <input id="teacherName" placeholder="Teacher Name">
-    <textarea id="complaintText" placeholder="Write complaint here..."></textarea>
-    <button class="btn" id="submitComplaintBtn">Submit</button>
-  </section>
+  <!-- Exam Selection -->
+  <select id="examSelect">
+    <option value="">-- Select Exam --</option>
+    <option>PeriodicTest1</option>
+    <option>HalfYearly</option>
+    <option>PeriodicTest3</option>
+    <option>Annual</option>
+  </select>
+
+  <!-- Area to Add Marks -->
+  <div id="marksArea"></div>
+
+  <!-- Add Student Input -->
+  <input id="studentName" placeholder="Student name">
+  <button class="btn" id="addStudentBtn">Add Student</button>
+
+  <!-- Save Marks -->
+  <button class="btn" id="saveMarksBtn">Save Marks</button>
+
+  <!-- 📊 Marks Chart Canvas -->
+  <div style="margin-top:20px;">
+    <canvas id="marksChart" width="400" height="200"></canvas>
+  </div>
+
+  <!-- 📈 Marks Analytics -->
+  <div id="marksAnalytics" style="margin-top:10px;"></div>
+</section>
 
   <!-- === Timetable === -->
   <section class="card">
@@ -71,22 +81,25 @@
 </main>
 
 <script>
-  // Get class name
+  // === Get class name ===
   const params = new URLSearchParams(window.location.search);
-  const className = params.get("class");
+  const className = params.get("class") || "Unknown";
   document.getElementById("classTitle").innerText = "Classroom: " + className;
 
-  // Firebase references
+  // === Firebase References ===
   const marksRef = db.ref(`schools/dilasagram/classes/${className}/marks`);
   const complaintsRef = db.ref(`schools/dilasagram/classes/${className}/complaints`);
   const timetableRef = db.ref(`schools/dilasagram/classes/${className}/timetable`);
   const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
   const activityRef = db.ref(`schools/dilasagram/classes/${className}/activities`);
-
-  /* === MARKS SECTION === */
+  
+  /* === 1️⃣ MARKS SECTION === */
+  const studentList = []; // store names to use for attendance
+  
   document.getElementById("addStudentBtn").onclick = () => {
     const name = document.getElementById("studentName").value.trim();
     if (!name) return alert("Enter student name");
+    studentList.push(name);
     const div = document.createElement("div");
     div.innerHTML = `
       <h4>${name}</h4>
@@ -111,22 +124,127 @@
       data[student] = data[student] || {};
       data[student][subj] = parseInt(inp.value) || 0;
     });
-    marksRef.child(exam).set(data);
+   marksRef.child(exam).set(data, (err) => {
+  if (err) alert("❌ Failed to save marks");
+  else {
     alert("Marks saved successfully ✅");
+    renderAnalytics(data);
+    renderMarksChart(data, exam);
+  }
+});
   };
 
-  /* === COMPLAINTS === */
+  // === Marks % Analytics ===
+  function renderAnalytics(data) {
+    let html = "<h4>📊 Marks Analytics</h4>";
+    let totalPerc = 0, count = 0;
+    for (let student in data) {
+      const subs = Object.values(data[student]);
+      const total = subs.reduce((a, b) => a + b, 0);
+      const percent = (total / (subs.length * 100)) * 100;
+      totalPerc += percent; count++;
+      html += `<p><b>${student}</b>: ${percent.toFixed(2)}%</p>`;
+    }
+    if (count > 0) html += `<p><b>Class Average:</b> ${(totalPerc / count).toFixed(2)}%</p>`;
+    document.getElementById("marksArea").insertAdjacentHTML("beforeend", html);
+  }
+  // === Chart.js Graph ===
+let marksChart;
+
+function renderMarksChart(data, examName) {
+  const ctx = document.getElementById("marksChart").getContext("2d");
+
+  const students = Object.keys(data);
+  const averages = students.map(name => {
+    const subs = Object.values(data[name]);
+    const total = subs.reduce((a, b) => a + b, 0);
+    return (total / (subs.length * 100)) * 100;
+  });
+
+  // Destroy old chart if exists
+  if (marksChart) marksChart.destroy();
+
+  marksChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: students,
+      datasets: [{
+        label: `${examName} %`,
+        data: averages,
+        backgroundColor: students.map(() => `hsl(${Math.random() * 360},70%,60%)`)
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: `📊 ${examName} Marks Percentage`
+        },
+        legend: {
+          display: false
+        }
+      }
+    }
+  });
+}
+
+
+  /* === 2️⃣ COMPLAINTS === */
   document.getElementById("submitComplaintBtn").onclick = () => {
     const teacher = document.getElementById("teacherName").value;
     const text = document.getElementById("complaintText").value;
     if (!teacher || !text) return alert("Please fill both fields");
-    complaintsRef.push({ teacher, text, time: new Date().toLocaleString(), status: "Unresolved" });
+    complaintsRef.push({
+      teacher, text,
+      time: new Date().toLocaleString(),
+      status: "Unresolved"
+    });
     alert("Complaint submitted ✅");
     document.getElementById("teacherName").value = "";
     document.getElementById("complaintText").value = "";
   };
 
-  /* === TIMETABLE === */
+  // === Complaint Table with Delete and Status ===
+  const complaintCard = document.querySelector(".card:nth-of-type(2)");
+  const complaintTable = document.createElement("div");
+  complaintCard.appendChild(complaintTable);
+
+  complaintsRef.on("value", (snap) => {
+    const data = snap.val() || {};
+    let html = "<h4>Existing Complaints</h4>";
+    html += "<table border='1' style='width:100%;border-collapse:collapse;'>";
+    html += "<tr><th>Teacher</th><th>Complaint</th><th>Status</th><th>Action</th></tr>";
+    for (let id in data) {
+      const c = data[id];
+      html += `<tr>
+        <td>${c.teacher}</td>
+        <td>${c.text}</td>
+        <td>${c.status}</td>
+        <td>
+          <button onclick="markResolved('${id}')">Resolve</button>
+          <button onclick="deleteComplaint('${id}')">Delete</button>
+        </td>
+      </tr>`;
+    }
+    html += "</table>";
+    complaintTable.innerHTML = html;
+  });
+
+  function markResolved(id) {
+    complaintsRef.child(id).update({ status: "Resolved" });
+  }
+
+  function deleteComplaint(id) {
+    complaintsRef.child(id).remove();
+  }
+
+  /* === 3️⃣ TIMETABLE === */
   const timetableArea = document.getElementById("timetableArea");
   const periods = ["1","2","3","4","Lunch","5","6","7","8"];
   periods.forEach(p => {
@@ -144,24 +262,27 @@
     alert("Timetable saved ✅");
   };
 
-  /* === ATTENDANCE === */
-  const attendanceStudents = ["Rohan","Neha","Aman","Priya"];
+  /* === 4️⃣ ATTENDANCE === */
   const attArea = document.getElementById("attendanceArea");
-  attendanceStudents.forEach(name => {
-    const div = document.createElement("div");
-    div.innerHTML = `<label><input type="checkbox" id="att-${name}"> ${name}</label>`;
-    attArea.appendChild(div);
-  });
+  function renderAttendance() {
+    attArea.innerHTML = "";
+    studentList.forEach((name, i) => {
+      const div = document.createElement("div");
+      div.innerHTML = `<label>${i+1}. ${name} <input type="checkbox" id="att-${name}"></label>`;
+      attArea.appendChild(div);
+    });
+  }
+
   document.getElementById("saveAttendanceBtn").onclick = () => {
     const data = {};
-    attendanceStudents.forEach(name => {
-      data[name] = document.getElementById("att-" + name).checked ? "Present" : "Absent";
+    studentList.forEach(name => {
+      data[name] = document.getElementById("att-" + name)?.checked ? "Present" : "Absent";
     });
     attendanceRef.child(new Date().toISOString().split("T")[0]).set(data);
     alert("Attendance saved ✅");
   };
 
-    /* === PHOTOS === */
+  /* === 5️⃣ FIXED PHOTO UPLOAD === */
   const fileInput = document.getElementById("activityPhoto");
   const gallery = document.getElementById("photoGallery");
 
@@ -174,11 +295,10 @@
       await ref.put(f);
       const url = await ref.getDownloadURL();
 
-      // Save inside the class folder
-      activityRef.push({ url, name: f.name, time: new Date().toLocaleString() });
-
-      // Also upload to public gallery so all can see
-      db.ref(`schools/dilasagram/public/gallery`).push({
+      // Save inside class
+      await activityRef.push({ url, name: f.name, time: new Date().toLocaleString() });
+      // Save in public gallery
+      await db.ref(`schools/dilasagram/public/gallery`).push({
         url,
         name: f.name,
         uploadedBy: className,
@@ -204,6 +324,7 @@
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+
 
 
 

@@ -166,7 +166,15 @@
       await ref.put(f);
       const url = await ref.getDownloadURL();
       activityRef.push({ url, name: f.name, time: new Date().toLocaleString() });
-    }
+
+// Also upload to public gallery so all can see
+db.ref(`schools/dilasagram/public/gallery`).push({
+  url,
+  name: f.name,
+  uploadedBy: className,
+  time: new Date().toLocaleString()
+});
+
     alert("Photos uploaded ✅");
   };
 
@@ -186,4 +194,5 @@
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+
 

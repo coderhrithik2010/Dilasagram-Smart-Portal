@@ -73,6 +73,7 @@
     }
   });
 </script>
+  
 <script>
   // === Auto-populate the "Select Class" dropdown ===
   const classSelect = document.getElementById("classSelect");
@@ -89,9 +90,40 @@
     }
   }
 </script>
+<script>
+  // === Firebase Connection Test ===
+  window.addEventListener("load", () => {
+    try {
+      const testRef = firebase.database().ref("connection_test");
+      testRef
+        .set({ status: "connected", time: new Date().toLocaleString() })
+        .then(() => {
+          console.log("✅ Firebase connection successful!");
+          const msg = document.createElement("div");
+          msg.textContent = "✅ Connected to Firebase successfully!";
+          msg.style = "background:#e6ffed;color:#006400;padding:8px;border-radius:6px;margin:10px;text-align:center;font-weight:600;";
+          document.body.insertBefore(msg, document.body.firstChild);
+        })
+        .catch((err) => {
+          console.error("❌ Firebase write failed:", err);
+          const msg = document.createElement("div");
+          msg.textContent = "⚠️ Firebase connected, but database write failed!";
+          msg.style = "background:#fff3cd;color:#856404;padding:8px;border-radius:6px;margin:10px;text-align:center;font-weight:600;";
+          document.body.insertBefore(msg, document.body.firstChild);
+        });
+    } catch (error) {
+      console.error("❌ Firebase not initialized:", error);
+      const msg = document.createElement("div");
+      msg.textContent = "❌ Firebase not initialized — check SDK order or config.";
+      msg.style = "background:#f8d7da;color:#721c24;padding:8px;border-radius:6px;margin:10px;text-align:center;font-weight:600;";
+      document.body.insertBefore(msg, document.body.firstChild);
+    }
+  });
+</script>
 
 </body>
 </html>
+
 
 
 

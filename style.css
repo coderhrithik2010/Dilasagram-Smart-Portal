@@ -67,3 +67,14 @@ h1, h2, h3 {
   color: #555;
 }
 .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+.studentRow {
+  border-bottom: 1px solid #ddd;
+  padding: 5px;
+  margin-bottom: 5px;
+}
+.studentRow button {
+  margin-left: 5px;
+  font-size: 14px;
+  cursor: pointer;
+}

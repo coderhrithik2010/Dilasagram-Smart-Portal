@@ -12,12 +12,125 @@
     <h2>Principal Dashboard</h2>
   </header>
 
-  <main class="container">
-    <section class="card"><h3>Class Performance</h3></section>
-    <section class="card"><h3>Complaints</h3></section>
-    <section class="card"><h3>Timetables</h3></section>
-    <section class="card"><h3>Activities</h3></section>
+ <main class="container">
+  <section class="card">
+    <h3>Class Performance Overview</h3>
+    <select id="classSelect"></select>
+    <canvas id="chart"></canvas>
+  </section>
+
+  <section class="card">
+    <h3>Complaints Management</h3>
+    <div id="complaintsTable"></div>
+  </section>
+
+  <section class="card">
+    <h3>Class Timetable</h3>
+    <div id="timetableView"></div>
+  </section>
+
+  <section class="card">
+    <h3>Activity Photos</h3>
+    <div id="photoGallery"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const classSelect = document.getElementById("classSelect");
+  for (let i = 1; i <= 10; i++) {
+    const secs = (i === 8) ? ['A','B','C','D'] : ['A','B','C'];
+    secs.forEach(sec => {
+      const opt = document.createElement("option");
+      opt.value = `class${i}${sec}`;
+      opt.textContent = `Class ${i}${sec}`;
+      classSelect.appendChild(opt);
+    });
+  }
+
+  const chartCtx = document.getElementById("chart");
+  let chart;
+
+  classSelect.onchange = () => {
+    const cls = classSelect.value;
+    loadMarks(cls);
+    loadComplaints(cls);
+    loadTimetable(cls);
+    loadPhotos(cls);
+  };
+
+  function loadMarks(cls) {
+    const ref = db.ref(`schools/dilasagram/classes/${cls}/marks/Annual`);
+    ref.once("value", snap => {
+      const data = snap.val() || {};
+      const names = Object.keys(data);
+      const averages = names.map(n => {
+        const subs = Object.values(data[n]);
+        return subs.reduce((a,b)=>a+b,0)/subs.length;
+      });
+      if (chart) chart.destroy();
+      chart = new Chart(chartCtx, {
+        type: "bar",
+        data: { labels: names, datasets: [{ label: "Average (%)", data: averages, backgroundColor: "#007bff" }] },
+        options: { scales: { y: { beginAtZero: true, max: 100 } } }
+      });
+    });
+  }
+
+  function loadComplaints(cls) {
+    const ref = db.ref(`schools/dilasagram/classes/${cls}/complaints`);
+    ref.on("value", snap => {
+      const data = snap.val() || {};
+      let html = `<table border="1" style="width:100%;border-collapse:collapse">
+      <tr><th>Teacher</th><th>Complaint</th><th>Status</th><th>Action</th></tr>`;
+      for (let id in data) {
+        const c = data[id];
+        html += `<tr><td>${c.teacher}</td><td>${c.text}</td><td>${c.status}</td>
+        <td>
+          <button onclick="resolve('${cls}','${id}')">Resolve</button>
+          <button onclick="deleteComplaint('${cls}','${id}')">Delete</button>
+        </td></tr>`;
+      }
+      html += "</table>";
+      document.getElementById("complaintsTable").innerHTML = html;
+    });
+  }
+
+  function resolve(cls, id) {
+    db.ref(`schools/dilasagram/classes/${cls}/complaints/${id}`).update({ status: "Resolved" });
+  }
+  function deleteComplaint(cls, id) {
+    if (confirm("Delete complaint?"))
+      db.ref(`schools/dilasagram/classes/${cls}/complaints/${id}`).remove();
+  }
+
+  function loadTimetable(cls) {
+    db.ref(`schools/dilasagram/classes/${cls}/timetable`).on("value", snap => {
+      const data = snap.val() || {};
+      let html = "<ul>";
+      Object.entries(data).forEach(([p,v]) => { html += `<li>${p}: ${v}</li>`; });
+      html += "</ul>";
+      document.getElementById("timetableView").innerHTML = html;
+    });
+  }
+
+  function loadPhotos(cls) {
+    db.ref(`schools/dilasagram/classes/${cls}/activities`).on("value", snap => {
+      const data = snap.val() || {};
+      const gallery = document.getElementById("photoGallery");
+      gallery.innerHTML = "";
+      Object.values(data).forEach(img => {
+        const im = document.createElement("img");
+        im.src = img.url;
+        im.style = "width:100px;border-radius:10px;margin:5px;";
+        gallery.appendChild(im);
+      });
+    });
+  }
+</script>
+
   </main>
   <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
 </body>
 </html>
+

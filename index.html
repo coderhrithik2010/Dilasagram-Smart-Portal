@@ -40,32 +40,31 @@
 
   <footer class="footer">© 2025 Dilasagram Convent School</footer>
 
-  <script>
-    // Populate class dropdown
-    const classSelect = document.getElementById("classSelect");
-    for (let i = 1; i <= 10; i++) {
-      const secs = (i === 8) ? ['A','B','C','D'] : ['A','B','C'];
-      secs.forEach(sec => {
-        const opt = document.createElement('option');
-        opt.value = `class${i}${sec}`;
-        opt.textContent = `Class ${i}${sec}`;
-        classSelect.appendChild(opt);
-      });
+<script>
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    const role = document.getElementById("role").value;
+    const email = document.getElementById("email").value.trim();
+    const pass = document.getElementById("password").value.trim();
+    const cls = document.getElementById("classSelect").value;
+
+    if (!role || !email || !pass || !cls) return alert("Please fill all fields");
+
+    if (role === "student") {
+      // Students will use local code for now
+      window.location = "student.html?class=" + cls + "&id=" + email;
+      return;
     }
 
-    // Simple UI login redirect
-    document.getElementById("loginBtn").addEventListener("click", () => {
-      const role = document.getElementById("role").value;
-      const email = document.getElementById("email").value.trim();
-      const pass = document.getElementById("password").value.trim();
-      const cls = document.getElementById("classSelect").value;
-
-      if (!role || !email || !pass || !cls) return alert("Please fill all fields");
-
+    try {
+      const userCred = await firebase.auth().signInWithEmailAndPassword(email, pass);
       if (role === "principal") window.location = "dashboard.html";
       else if (role === "teacher") window.location = "teacher.html?class=" + cls;
-      else if (role === "student") window.location = "student.html?class=" + cls;
-    });
-  </script>
+    } catch (err) {
+      alert("Login failed: " + err.message);
+    }
+  });
+</script>
+
 </body>
 </html>
+
